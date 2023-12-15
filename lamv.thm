@@ -1,0 +1,528 @@
+% vim: et
+Specification "lamv".
+
+Theorem redm_cong_lam : forall E E', nabla x, {redm (E x) (E' x)} -> {redvm (lam E) (lam E')}.
+  induction on 1.
+  intros.
+  case H1. search.
+  assert {redv (lam E) (lam E')}.
+  search.
+  apply IH to H2.
+  apply IH to H3.
+  search.
+
+Theorem redm_cong_app1 : forall V1 V1' V2, {redvm V1 V1'} -> {redm (app V1 V2) (app V1' V2)}.
+  induction on 1.
+  intros.
+  case H1.
+  search.
+  search.
+  apply IH to H2 with V2 = V2.
+  apply IH to H3 with V2 = V2.
+  search.
+
+Theorem redm_cong_app2 : forall V1 V2 V2', {redvm V2 V2'} -> {redm (app V1 V2) (app V1 V2')}.
+  induction on 1.
+  intros.
+  case H1.
+  search.
+  search.
+  apply IH to H2 with V1 = V1.
+  apply IH to H3 with V1 = V1.
+  search.
+
+Theorem redm_cong2_app : forall V1 V1' V2 V2', {redvm V1 V1'} -> {redvm V2 V2'}
+  -> {redm (app V1 V2) (app V1' V2')}.
+  intros.
+  apply redm_cong_app1 to H1 with V2 = V2.
+  apply redm_cong_app2 to H2 with V1 = V1'.
+  search.
+
+Theorem redm_cong_let1 : forall E1 E1' E2, {redm E1 E1'} -> {redm (let E1 E2) (let E1' E2)}.
+  induction on 1.
+  intros.
+  case H1.
+  search.
+  search.
+  apply IH to H2 with E2 = E2.
+  apply IH to H3 with E2 = E2.
+  search.
+
+Theorem redm_cong_let2 : forall E1 E2 E2', nabla x, {redm (E2 x) (E2' x)} -> {redm (let E1 E2) (let E1 E2')}.
+  induction on 1.
+  intros.
+  case H1.
+  search.
+  search.
+  apply IH to H2 with E1 = E1.
+  apply IH to H3 with E1 = E1.
+  search.
+
+Theorem redm_cong2_let : forall E1 E1' E2 E2', nabla x, {redm E1 E1'} -> {redm (E2 x) (E2' x)}
+  -> {redm (let E1 E2) (let E1' E2')}.
+  intros.
+  apply redm_cong_let1 to H1 with E2 = E2.
+  apply redm_cong_let2 to H2 with E1 = E1'.
+  search.
+
+Theorem redm_cong_ret : forall V V', {redvm V V'} -> {redm (ret V) (ret V')}.
+  induction on 1.
+  intros.
+  case H1.
+    search.
+    search.
+    apply IH to H2.
+    apply IH to H3.
+    search.
+
+Theorem redm_inv_lam : forall E LE', nabla x, {redvm (lam E) LE'} -> exists E', LE' = lam E' /\ {redm (E x) (E' x)}.
+  induction on 1.
+  intros.
+  case H1. search.
+  case H2. search.
+  apply IH to H2.
+  apply IH to H3.
+  search.
+
+Define is_expr : expr -> prop,
+       is_val : val -> prop by
+  nabla x, is_val x;
+  is_val (lam E) := nabla x, is_expr (E x);
+
+  is_expr (ret V) := is_val V;
+  is_expr (app E1 E2) := is_val E1 /\ is_val E2;
+  is_expr (let E1 E2) := is_expr E1 /\ nabla x, is_expr (E2 x).
+
+Define is_ret : expr -> prop by
+  is_ret (ret V).
+
+Define is_lam : val -> prop by
+  is_lam (lam E).
+
+Theorem redm_subst :
+  (forall E U U', nabla x, is_expr (E x) -> {redvm U U'} -> {redm (E U) (E U')}) /\
+  (forall V U U', nabla x, is_val (V x) -> {redvm U U'} -> {redvm (V U) (V U')}).
+  induction on 1 1. split.
+  intros. case H1.
+    apply IH1 to H3 H2.
+    apply redm_cong_ret to H4.
+    search.
+
+    apply IH1 to H3 H2.
+    apply IH1 to H4 H2.
+    apply redm_cong2_app to H5 H6.
+    search.
+
+    apply IH to H3 H2.
+    apply IH to H4 H2.
+    apply redm_cong2_let to H5 H6.
+    search.
+  intros. case H1.
+    search.
+    search.
+    apply IH to H3 H2.
+    apply redm_cong_lam to H4.
+    search.
+Split redm_subst as redm_subst, redvm_subst.
+
+Theorem redm2_subst :
+  (forall E E' U U', nabla x, is_expr (E' x) -> {redm (E x) (E' x)} -> {redvm U U'} -> {redm (E U) (E' U')}) /\
+  (forall V V' U U', nabla x, is_val (V' x) -> {redvm (V x) (V' x)} -> {redvm U U'} -> {redvm (V U) (V' U')}).
+  split.
+  intros.
+    inst H2 with n1 = U.
+    apply redm_subst to H1 H3.
+    search.
+  intros.
+    inst H2 with n1 = U.
+    apply redvm_subst to H1 H3.
+    search.
+Split redm2_subst as redm2_subst, redvm2_subst.
+
+Define super : expr -> expr -> prop,
+       superv : val -> val -> prop by
+  nabla x, superv x x;
+  superv (lam E) (lam E') := nabla x, super (E x) (E' x);
+
+  super (app VL V) (E' V') := superv VL (lam E') /\ superv V V';
+  super (app V1 V2) (app V1' V2') := (is_lam V1' -> false) /\ superv V1 V1' /\ superv V2 V2';
+  super (let (ret V) E) (E' V') := superv V V' /\ nabla x, super (E x) (E' x);
+  super (let NV E) (let NV' E') := (is_ret NV -> false) /\ super NV NV' /\ nabla x, super (E x) (E' x);
+  super (ret V) (ret V') := superv V V'.
+
+Theorem super_det :
+  (forall E SE1 SE2, super E SE1 -> super E SE2 -> SE1 = SE2) /\
+  (forall V SV1 SV2, superv V SV1 -> superv V SV2 -> SV1 = SV2).
+  induction on 1 1. split.
+  intros. case H1.
+    case H2.
+      apply IH1 to H3 H5.
+      apply IH1 to H4 H6.
+      search.
+
+      apply IH1 to H3 H6.
+      apply H5 to _.
+
+    case H2.
+      apply IH1 to H4 H6.
+      apply H3 to _.
+
+      apply IH1 to H4 H7.
+      apply IH1 to H5 H8.
+      search.
+    case H2.
+      apply IH1 to H3 H5.
+      apply IH to H4 H6.
+      search.
+
+      apply H5 to _.
+
+    case H2.
+      apply H3 to _.
+      apply IH to H4 H7.
+      apply IH to H5 H8.
+      search.
+
+    case H2.
+      apply IH1 to H3 H4.
+      search.
+  intros. case H1.
+    case H2.
+      search.
+    case H2.
+      apply IH to H3 H4.
+      search.
+
+Split super_det as super_det, superv_det.
+
+Theorem super_redm_redvm :
+  (forall E SE, super E SE -> {redm E SE}) /\
+  (forall V SV, superv V SV -> {redvm V SV}).
+  induction on 1 1.
+  split.
+  intros.
+    case H1.
+    apply IH1 to H2.
+    apply IH1 to H3.
+    apply redm_cong2_app to H4 H5.
+    search.
+
+    apply IH1 to H3.
+    apply IH1 to H4.
+    apply redm_cong2_app to H5 H6.
+    search.
+
+    apply IH1 to H2.
+    apply IH to H3.
+    apply redm_cong_ret to H4.
+    apply redm_cong2_let to H6 H5.
+    search.
+
+    apply IH to H3.
+    apply IH to H4.
+    apply redm_cong2_let to H5 H6.
+    search.
+
+    apply IH1 to H2.
+    apply redm_cong_ret to H3.
+    search.
+
+  intros.
+    case H1.
+    search.
+
+    apply IH to H2.
+    apply redm_cong_lam to H3.
+    search.
+
+Split super_redm_redvm as super_redm, super_redvm.
+
+Theorem subst_ind :
+  (forall E V, nabla x, is_expr (E x) -> is_val V -> is_expr (E V)) /\
+  (forall V1 V2, nabla x, is_val (V1 x) -> is_val V2 -> is_val (V1 V2)).
+  induction on 1 1. split.
+  intros.
+    case H1.
+    apply IH1 to H3 H2.
+    search.
+
+    apply IH1 to H3 H2.
+    apply IH1 to H4 H2.
+    search.
+
+    apply IH to H3 H2.
+    apply IH to H4 H2.
+    search.
+  intros.
+    case H1.
+    search.
+    search.
+    apply IH to H3 H2.
+    search.
+
+Split subst_ind as subst_expr, subst_val.
+
+Theorem super_ind :
+ (forall E E', super E E' -> is_expr E /\ is_expr E') /\
+ (forall V V', superv V V' -> is_val V /\ is_val V').
+  induction on 1 1. split.
+  intros. case H1.
+    apply IH1 to H2.
+    apply IH1 to H3.
+    case H5.
+    apply subst_expr to H8 H7.
+    search.
+
+    apply IH1 to H3.
+    apply IH1 to H4.
+    search.
+
+    apply IH1 to H2.
+    apply IH to H3.
+    apply subst_expr to H7 H5.
+    search.
+
+    apply IH to H3.
+    apply IH to H4.
+    search.
+
+    apply IH1 to H2.
+    search.
+  intros. case H1.
+    search.
+    apply IH to H2.
+    search.
+
+Split super_ind as super_ind, superv_ind.
+
+Theorem super_subst :
+  (forall E SE V SV SEV, nabla x, super (E x) (SE x) -> superv V SV -> super (E V) SEV -> {redm (SE SV) SEV}) /\
+  (forall V SV U SU SVU, nabla x, superv (V x) (SV x) -> superv U SU -> superv (V U) SVU -> {redvm (SV SU) SVU}).
+  induction on 1 1. split.
+  intros. case H1.
+    case H3.
+    apply IH1 to H4 H2 H6.
+    apply IH1 to H5 H2 H7.
+    apply redm_inv_lam to H8.
+    apply superv_ind to H4.
+    case H12.
+    apply superv_ind to H2.
+    apply subst_expr to H13 H15.
+    apply redm_subst to H16 H9.
+    inst H10 with n1 = V'1.
+    search.
+
+    case H7.
+    case H9.
+    case H4.
+    case H4.
+    apply H6 to _.
+
+    case H3.
+    apply IH1 to H5 H2 H7.
+    apply IH1 to H6 H2 H8.
+    apply redm_cong2_app to H9 H10.
+    search.
+
+    apply IH1 to H5 H2 H8.
+    apply IH1 to H6 H2 H9.
+    apply redm_cong2_app to H10 H11.
+    search.
+
+    case H3.
+    apply IH1 to H4 H2 H6.
+    permute (n1 n2) H5.
+    apply IH to H5 H2 H7.
+    inst H9 with n1 = V' SV.
+    apply super_ind to H7.
+    apply redm_subst to H12 H8.
+    search.
+
+    apply H6 to _.
+    case H3.
+    case H7.
+    apply H4 to _.
+    apply IH to H5 H2 H8.
+    permute (n1 n2) H6.
+    apply IH to H6 H2 H9.
+    apply redm_cong2_let to H10 H11.
+    search.
+
+    case H3.
+    apply IH1 to H4 H2 H5.
+    apply redm_cong_ret to H6.
+    search.
+  intros. case H1 (keep).
+    case H3. search.
+
+    apply superv_det to H2 H3.
+    search.
+
+    case H3.
+    apply IH to H4 H2 _.
+    apply redm_cong_lam to H6.
+    search.
+Split super_subst as super_subst, superv_subst.
+
+Theorem super_Z :
+  (forall E E' SE SE', {red E E'} -> super E SE -> super E' SE' -> {redm E' SE} /\ {redm SE SE'}) /\
+  (forall V V' SV SV', {redv V V'} -> superv V SV -> superv V' SV' -> {redvm V' SV} /\ {redvm SV SV'}).
+  induction on 1 1. split.
+  intros. case H1.
+    case H2.
+    case H4.
+    apply super_subst to H6 H5 H3.
+    apply super_redm to H6.
+    apply super_redvm to H5.
+    apply super_ind to H6.
+    apply redm2_subst to H11 H8 H9.
+    search.
+
+    case H5.
+    apply H4 to _.
+
+    case H2.
+    apply super_subst to H5 H4 H3.
+    apply super_redm to H5.
+    apply super_redvm to H4.
+    apply super_ind to H5.
+    apply redm2_subst to H10 H7 H8.
+    search.
+
+    apply H4 to _.
+
+    case H2.
+    case H3.
+    apply superv_det to H6 H8.
+    apply IH1 to H4 H5 H7.
+    apply redm_inv_lam to H10.
+    inst H11 with n1 = V'1.
+    apply super_redvm to H8.
+    apply redm_cong2_app to H9 H13.
+    search.
+
+    apply IH1 to H4 H5 H8.
+    apply redm_inv_lam to H11.
+    apply H7 to _.
+
+    case H3.
+    apply superv_det to H7 H9.
+    apply IH1 to H4 H6 H8.
+    apply redm_cong_app1 to H11 with V2 = V'.
+    apply super_redvm to H9.
+    apply redm_cong2_app to H10 H13.
+    search.
+
+    apply superv_det to H7 H10.
+    apply IH1 to H4 H6 H9.
+    apply redm_cong_app1 to H12 with V2 = V2'1.
+    apply super_redvm to H10.
+    apply redm_cong2_app to H11 H14.
+    search.
+
+    case H2.
+    case H3.
+    apply superv_det to H5 H7.
+    apply IH1 to H4 H6 H8.
+    apply superv_ind to H5.
+    case H12.
+    apply redm_subst to H13 H10.
+    apply super_redvm to H5.
+    apply redm_cong2_app to H15 H9.
+    search.
+
+    apply superv_det to H5 H8.
+    apply H7 to _.
+
+    case H3.
+    apply superv_det to H6 H8.
+    apply H5 to _.
+
+    apply superv_det to H6 H9.
+    apply IH1 to H4 H7 H10.
+    apply redm_cong_app2 to H12 with V1 = V1'1.
+    apply super_redvm to H6.
+    apply redm_cong2_app to H14 H11.
+    search.
+
+    case H2. case H3.
+    apply super_det to H6 H8.
+    case H4.
+    apply IH1 to H9 H5 H7.
+    apply super_ind to H8.
+    apply redm_subst to H13 H11.
+    apply super_redm to H8.
+    apply redm2_subst to H13 H15 H10.
+    search.
+
+    apply super_det to H6 H9.
+    case H4 (keep).
+    apply H7 to _.
+    case H3.
+    apply super_det to H7 H9.
+    apply IH to H4 H6 _.
+    apply redm_cong_let1 to H11 with E2 = E'2.
+    apply super_redm to H9.
+    apply redm_cong2_let to H10 H13.
+    search.
+
+    apply super_det to H7 H10.
+    apply IH to H4 H6 H9.
+    apply redm_cong_let1 to H12 with E2 = E'2.
+    apply super_redm to H10.
+    apply redm_cong2_let to H11 H14.
+    search.
+
+    case H2.
+    case H3.
+    apply superv_det to H5 H7.
+    apply IH to H4 H6 H8.
+    inst H10 with n1 = V'1.
+    apply super_redvm to H7.
+    apply super_ind to H6.
+    apply redm2_subst to H14 H9 H12.
+    search.
+
+    apply H7 to _.
+
+    case H3.
+    apply H5 to _.
+
+    apply super_det to H6 H9.
+    apply IH to H4 H7 H10.
+    apply redm_cong_let2 to H12 with E1 = NV'1.
+    apply super_redm to H6.
+    apply redm_cong2_let to H14 H11.
+    search.
+
+    case H2.
+    case H3.
+    apply IH1 to H4 H5 H6.
+    apply redm_cong_ret to H7.
+    apply redm_cong_ret to H8.
+    search.
+  intros. case H1.
+    case H2. case H3.
+    apply IH to H4 H5 H6.
+    apply redm_cong_lam to H7.
+    apply redm_cong_lam to H8.
+    search.
+Split super_Z as super_Z, superv_Z.
+
+Theorem super_tot :
+  (forall E, is_expr E -> exists E', super E E') /\
+  (forall V, is_val V -> exists V', superv V V').
+  induction on 1 1. split.
+  intros. case H1.
+    apply IH1 to H2. search.
+    apply IH1 to H2. apply IH1 to H3. apply superv_ind to H4. case H7.
+      assert is_lam n1 -> false. intros. case H8. search.
+      search.
+    apply IH to H2. apply IH to H3. apply super_ind to H4. case H6.
+      case H4. search.
+      assert is_ret (app E3 E4) -> false. intros. case H10. search.
+      assert is_ret (let E3 E4) -> false. intros. case H10. search.
+  intros. case H1.
+    search.
+    apply IH to H2. search.
+Split super_tot as super_tot, superv_tot.
